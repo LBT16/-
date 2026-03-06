@@ -125,12 +125,7 @@
     .table-wrap {
       padding: 14px;
       overflow-x: auto;
-      touch-action: pan-y;
-    }
-
-    .mobile-list {
-      display: none;
-      padding: 10px;
+      -webkit-overflow-scrolling: touch;
     }
 
     table {
@@ -192,46 +187,20 @@
       h1 { font-size: 20px; }
       .sub { font-size: 13px; }
       .table-wrap {
-        display: none;
+        padding: 10px;
       }
-      .mobile-list {
-        display: block;
+      table {
+        min-width: 680px;
       }
-      .mobile-card {
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: #fffdf9;
-        margin-bottom: 10px;
-        padding: 4px 10px;
-      }
-      .mobile-row {
-        border-bottom: 1px dashed #eddcc9;
+      th, td {
         font-size: 13px;
-        padding: 8px 0;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
+        padding: 8px 6px;
       }
-      .mobile-row:last-child {
-        border-bottom: 0;
+      .cn {
+        width: 130px;
       }
-      .mobile-label {
-        display: inline-block;
-        color: #7a6a5c;
-        font-weight: 700;
-        width: 72px;
-        flex: 0 0 72px;
-      }
-      .mobile-value {
-        text-align: right;
-        flex: 1 1 auto;
-        color: var(--ink);
-        word-break: break-word;
-      }
-      .mobile-value input[type="text"] {
-        width: 100%;
-        max-width: 58vw;
+      .answer {
+        min-width: 110px;
       }
     }
   </style>
@@ -252,7 +221,7 @@
       <div class="pager">
         <button id="prevPageBtn">上一批10词</button>
         <button id="nextPageBtn">下一批10词</button>
-        <span class="page-indicator" id="pageIndicator">第 1 / 5 批（支持左右滑动切换）</span>
+        <span class="page-indicator" id="pageIndicator">第 1 / 5 批</span>
       </div>
     </header>
 
@@ -270,7 +239,6 @@
         <tbody id="wordRows"></tbody>
       </table>
     </section>
-    <section class="mobile-list" id="mobileRows"></section>
   </main>
 
   <script>
@@ -321,7 +289,6 @@
     const PAGE_SIZE = 10;
 
     const rowsEl = document.getElementById("wordRows");
-    const mobileRowsEl = document.getElementById("mobileRows");
     const statusEl = document.getElementById("statusText");
     const newSetBtn = document.getElementById("newSetBtn");
     const wrongSetBtn = document.getElementById("wrongSetBtn");
@@ -331,7 +298,7 @@
     const prevPageBtn = document.getElementById("prevPageBtn");
     const nextPageBtn = document.getElementById("nextPageBtn");
     const pageIndicator = document.getElementById("pageIndicator");
-    const tableWrap = document.getElementById("tableWrap");
+    const pagerEl = document.querySelector(".pager");
 
     let currentWords = [];
     let currentPage = 0;
@@ -389,55 +356,32 @@
       if (pages === 0) {
         prevPageBtn.disabled = true;
         nextPageBtn.disabled = true;
-        pageIndicator.textContent = "第 0 / 0 批（支持左右滑动切换）";
+        pageIndicator.textContent = "第 0 / 0 批";
         return;
       }
       prevPageBtn.disabled = currentPage === 0;
       nextPageBtn.disabled = currentPage >= pages - 1;
-      pageIndicator.textContent = `第 ${currentPage + 1} / ${pages} 批（支持左右滑动切换）`;
+      pageIndicator.textContent = `第 ${currentPage + 1} / ${pages} 批`;
     }
 
     function renderRows() {
       rowsEl.innerHTML = "";
-      mobileRowsEl.innerHTML = "";
       const start = currentPage * PAGE_SIZE;
       const end = Math.min(start + PAGE_SIZE, currentWords.length);
-      const isMobile = window.matchMedia("(max-width: 760px)").matches;
 
       for (let i = start; i < end; i += 1) {
         const item = currentWords[i];
-        let input;
-        let resultValue;
-        let answerValue;
-
-        if (isMobile) {
-          const card = document.createElement("article");
-          card.className = "mobile-card";
-          card.innerHTML = `
-            <div class="mobile-row"><span class="mobile-label">序号</span><span class="mobile-value">${String(i + 1).padStart(2, "0")}</span></div>
-            <div class="mobile-row"><span class="mobile-label">中文</span><span class="mobile-value">${item.cn}</span></div>
-            <div class="mobile-row"><span class="mobile-label">你的英文</span><span class="mobile-value"><input type="text" data-index="${i}" autocomplete="off" value="${item.user}" /></span></div>
-            <div class="mobile-row"><span class="mobile-label">结果</span><span class="mobile-value mobile-result"></span></div>
-            <div class="mobile-row"><span class="mobile-label">标准答案</span><span class="mobile-value mobile-answer"></span></div>
-          `;
-          input = card.querySelector("input");
-          resultValue = card.querySelector(".mobile-result");
-          answerValue = card.querySelector(".mobile-answer");
-          mobileRowsEl.appendChild(card);
-        } else {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="num">${String(i + 1).padStart(2, "0")}</td>
-            <td class="cn">${item.cn}</td>
-            <td><input type="text" data-index="${i}" autocomplete="off" value="${item.user}" /></td>
-            <td class="result desktop-result"></td>
-            <td class="answer desktop-answer"></td>
-          `;
-          input = tr.querySelector("input");
-          resultValue = tr.querySelector(".desktop-result");
-          answerValue = tr.querySelector(".desktop-answer");
-          rowsEl.appendChild(tr);
-        }
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="num">${String(i + 1).padStart(2, "0")}</td>
+          <td class="cn">${item.cn}</td>
+          <td><input type="text" data-index="${i}" autocomplete="off" value="${item.user}" /></td>
+          <td class="result desktop-result"></td>
+          <td class="answer desktop-answer"></td>
+        `;
+        const input = tr.querySelector("input");
+        const resultValue = tr.querySelector(".desktop-result");
+        const answerValue = tr.querySelector(".desktop-answer");
 
         input.addEventListener("input", (e) => {
           const index = Number(e.target.dataset.index);
@@ -469,15 +413,14 @@
             answerValue.textContent = item.showAnswer ? item.en : "";
           }
         }
+        rowsEl.appendChild(tr);
       }
 
       updatePagerUI();
     }
 
     function focusInputByIndex(index) {
-      const isMobile = window.matchMedia("(max-width: 760px)").matches;
-      const root = isMobile ? mobileRowsEl : rowsEl;
-      const input = root.querySelector(`input[data-index='${index}']`);
+      const input = rowsEl.querySelector(`input[data-index='${index}']`);
       if (!input) return;
       input.focus();
       input.select();
@@ -629,8 +572,7 @@
       }, { passive: true });
     }
 
-    bindSwipe(tableWrap);
-    bindSwipe(mobileRowsEl);
+    bindSwipe(pagerEl);
 
     window.addEventListener("resize", renderRows);
 
