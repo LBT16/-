@@ -296,6 +296,28 @@
       max-width: 180px;
     }
 
+    .voice-panel {
+      display: none;
+      margin-top: 8px;
+      padding: 8px 10px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.5);
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .voice-panel.is-visible {
+      display: flex;
+    }
+
+    .voice-status {
+      color: #475569;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
     @media (max-width: 760px) {
       h1 { font-size: 20px; }
       .table-wrap {
@@ -339,6 +361,11 @@
         <button class="btn-light" id="showBtn" disabled>查看答案</button>
       </div>
       <div class="status" id="statusText">点击“随机50词”开始。</div>
+      <div class="voice-panel" id="voicePanel">
+        <button class="btn-dark" id="voiceSessionBtn" type="button">开始语音答题</button>
+        <button class="btn-light" id="voiceNextBtn" type="button">下一题</button>
+        <span class="voice-status" id="voiceStatusText">当前未启用语音模式</span>
+      </div>
       <div class="stats-panel" id="statsPanel">学习统计加载中...</div>
     </header>
 
@@ -408,6 +435,10 @@
     const statsPanelEl = document.getElementById("statsPanel");
     const levelSelectEl = document.getElementById("levelSelect");
     const inputModeSelectEl = document.getElementById("inputModeSelect");
+    const voicePanelEl = document.getElementById("voicePanel");
+    const voiceSessionBtn = document.getElementById("voiceSessionBtn");
+    const voiceNextBtn = document.getElementById("voiceNextBtn");
+    const voiceStatusText = document.getElementById("voiceStatusText");
     const newSetBtn = document.getElementById("newSetBtn");
     const wrongSetBtn = document.getElementById("wrongSetBtn");
     const clearWrongBtn = document.getElementById("clearWrongBtn");
@@ -431,6 +462,8 @@
     inputModeSelectEl.value = inputMode;
     let activeRecognition = null;
     let activeRecognitionIndex = null;
+    let voiceSessionActive = false;
+    let voiceRestartOnEnd = false;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 
@@ -589,11 +622,48 @@
       pageIndicator.textContent = `第 ${currentPage + 1} / ${pages} 批`;
     }
 
+    function updateVoicePanel() {
+      const visible = inputMode === "voice";
+      voicePanelEl.classList.toggle("is-visible", visible);
+      if (!visible) return;
+      const label = activeRecognitionIndex === null
+        ? "当前目标：未开始"
+        : `当前目标：第 ${activeRecognitionIndex + 1} 题`;
+      voiceStatusText.textContent = voiceSessionActive
+        ? `${label}，请直接说英文`
+        : `${label}，点击“开始语音答题”`;
+      voiceSessionBtn.textContent = voiceSessionActive ? "停止语音答题" : "开始语音答题";
+      voiceNextBtn.disabled = currentWords.length === 0;
+    }
+
+    function syncVoiceTarget(targetIndex) {
+      if (targetIndex < 0 || targetIndex >= currentWords.length) {
+        activeRecognitionIndex = null;
+        updateVoicePanel();
+        return;
+      }
+      activeRecognitionIndex = targetIndex;
+      const nextPage = Math.floor(targetIndex / PAGE_SIZE);
+      if (nextPage !== currentPage) {
+        currentPage = nextPage;
+        renderRows();
+        return;
+      }
+      renderRows();
+    }
+
+    function findNextVoiceIndex(fromIndex = 0) {
+      for (let i = fromIndex; i < currentWords.length; i += 1) {
+        return i;
+      }
+      return -1;
+    }
+
     function stopRecognition() {
       if (!activeRecognition) return;
       const recognition = activeRecognition;
       activeRecognition = null;
-      activeRecognitionIndex = null;
+      voiceRestartOnEnd = false;
       recognition.onresult = null;
       recognition.onerror = null;
       recognition.onend = null;
@@ -607,10 +677,6 @@
         statusEl.textContent = "当前浏览器不支持语音输入，建议改用手写输入。";
         return;
       }
-      if (activeRecognitionIndex === index) {
-        stopRecognition();
-        return;
-      }
       if (activeRecognition) {
         stopRecognition();
       }
@@ -622,22 +688,40 @@
 
       activeRecognition = recognition;
       activeRecognitionIndex = index;
+      voiceRestartOnEnd = false;
       renderRows();
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript || "";
         currentWords[index].user = normalize(transcript).replace(/[.?!,]/g, "");
+        const nextIndex = findNextVoiceIndex(index + 1);
+        if (voiceSessionActive && nextIndex !== -1) {
+          activeRecognitionIndex = nextIndex;
+          voiceRestartOnEnd = true;
+        } else {
+          voiceSessionActive = false;
+          voiceRestartOnEnd = false;
+        }
       };
 
       recognition.onerror = () => {
+        voiceSessionActive = false;
+        voiceRestartOnEnd = false;
         statusEl.classList.remove("score-line");
         statusEl.textContent = "语音识别失败，请再试一次或切回手写输入。";
+        updateVoicePanel();
       };
 
       recognition.onend = () => {
         activeRecognition = null;
-        activeRecognitionIndex = null;
+        if (voiceRestartOnEnd && activeRecognitionIndex !== null) {
+          voiceRestartOnEnd = false;
+          syncVoiceTarget(activeRecognitionIndex);
+          startVoiceRecognition(activeRecognitionIndex);
+          return;
+        }
         renderRows();
+        updateVoicePanel();
       };
 
       statusEl.classList.remove("score-line");
@@ -654,7 +738,7 @@
         const item = currentWords[i];
         const tr = document.createElement("tr");
         const answerInputHtml = inputMode === "voice"
-          ? `<div class="voice-cell"><button class="voice-btn ${activeRecognitionIndex === i ? "is-recording" : ""}" data-voice-index="${i}" type="button">${activeRecognitionIndex === i ? "录音中..." : "语音输入"}</button><span class="voice-text">${item.user || "未录入"}</span></div>`
+          ? `<div class="voice-cell"><span class="voice-btn ${activeRecognitionIndex === i ? "is-recording" : ""}">${activeRecognitionIndex === i ? "当前题" : "待答题"}</span><span class="voice-text">${item.user || "未录入"}</span></div>`
           : `<input type="text" data-index="${i}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="latin" value="${item.user}" />`;
         tr.innerHTML = `
           <td class="num">${String(i + 1).padStart(2, "0")}</td>
@@ -703,6 +787,7 @@
       }
 
       updatePagerUI();
+      updateVoicePanel();
     }
 
     function focusInputByIndex(index) {
@@ -751,7 +836,10 @@
 
     function moveFocusToIndex(targetIndex) {
       if (targetIndex < 0 || targetIndex >= currentWords.length) return;
-      if (activeRecognition) stopRecognition();
+      if (activeRecognition) {
+        voiceSessionActive = false;
+        stopRecognition();
+      }
       const nextPage = Math.floor(targetIndex / PAGE_SIZE);
       if (nextPage !== currentPage) {
         currentPage = nextPage;
@@ -764,7 +852,10 @@
       const pages = getTotalPages();
       const next = Math.max(0, Math.min(page, pages - 1));
       if (next === currentPage) return;
-      if (activeRecognition) stopRecognition();
+      if (activeRecognition) {
+        voiceSessionActive = false;
+        stopRecognition();
+      }
       currentPage = next;
       renderRows();
     }
@@ -790,6 +881,8 @@
       currentPage = 0;
       hasChecked = false;
       showBtn.disabled = true;
+      voiceSessionActive = false;
+      activeRecognitionIndex = null;
       if (activeRecognition) stopRecognition();
       renderRows();
       statusEl.classList.remove("score-line");
@@ -830,6 +923,8 @@
       currentPage = 0;
       hasChecked = false;
       showBtn.disabled = true;
+      voiceSessionActive = false;
+      activeRecognitionIndex = null;
       if (activeRecognition) stopRecognition();
       renderRows();
       statusEl.classList.remove("score-line");
@@ -839,6 +934,8 @@
     function clearWrongBook() {
       wrongBook = [];
       saveWrongBook();
+      voiceSessionActive = false;
+      activeRecognitionIndex = null;
       if (activeRecognition) stopRecognition();
       if (currentMode === "wrong") {
         currentWords = [];
@@ -908,11 +1005,13 @@
     inputModeSelectEl.addEventListener("change", () => {
       inputMode = inputModeSelectEl.value;
       localStorage.setItem("word_input_mode", inputMode);
+      voiceSessionActive = false;
+      activeRecognitionIndex = null;
       if (activeRecognition) stopRecognition();
       renderRows();
       statusEl.classList.remove("score-line");
       statusEl.textContent = inputMode === "voice"
-        ? "已切换到语音输入，点每题“语音输入”开始说英文。"
+        ? "已切换到语音输入，使用顶部按钮连续作答。"
         : "已切换到手写输入。";
     });
     wrongSetBtn.addEventListener("click", startWrongSet);
@@ -923,12 +1022,32 @@
       const btn = e.target.closest(".speak-btn");
       if (btn) {
         speakWord(btn.dataset.word || "");
+      }
+    });
+    voiceSessionBtn.addEventListener("click", () => {
+      if (voiceSessionActive) {
+        voiceSessionActive = false;
+        stopRecognition();
+        updateVoicePanel();
+        statusEl.classList.remove("score-line");
+        statusEl.textContent = "已停止语音答题。";
         return;
       }
-      const voiceBtn = e.target.closest(".voice-btn");
-      if (voiceBtn) {
-        startVoiceRecognition(Number(voiceBtn.dataset.voiceIndex));
+      const startIndex = activeRecognitionIndex !== null ? activeRecognitionIndex : findNextVoiceIndex(currentPage * PAGE_SIZE);
+      if (startIndex === -1) {
+        statusEl.classList.remove("score-line");
+        statusEl.textContent = "当前没有可作答题目。";
+        return;
       }
+      voiceSessionActive = true;
+      syncVoiceTarget(startIndex);
+      startVoiceRecognition(startIndex);
+    });
+    voiceNextBtn.addEventListener("click", () => {
+      const nextIndex = activeRecognitionIndex === null ? findNextVoiceIndex(currentPage * PAGE_SIZE) : Math.min(activeRecognitionIndex + 1, currentWords.length - 1);
+      syncVoiceTarget(nextIndex);
+      statusEl.classList.remove("score-line");
+      statusEl.textContent = activeRecognitionIndex === null ? "没有更多题目。" : `已切到第 ${activeRecognitionIndex + 1} 题。`;
     });
     prevPageBtn.addEventListener("click", () => goToPage(currentPage - 1));
     nextPageBtn.addEventListener("click", () => goToPage(currentPage + 1));
