@@ -241,51 +241,14 @@
     </section>
   </main>
 
+  <script src="word_bank.js"></script>
   <script>
-    const WORD_BANK = [
-      ["苹果", "apple"], ["香蕉", "banana"], ["橙子", "orange"], ["葡萄", "grape"], ["西瓜", "watermelon"],
-      ["草莓", "strawberry"], ["桃子", "peach"], ["梨", "pear"], ["菠萝", "pineapple"], ["芒果", "mango"],
-      ["米饭", "rice"], ["面包", "bread"], ["牛奶", "milk"], ["鸡蛋", "egg"], ["鱼", "fish"],
-      ["鸡肉", "chicken"], ["牛肉", "beef"], ["猪肉", "pork"], ["汤", "soup"], ["面条", "noodles"],
-      ["猫", "cat"], ["狗", "dog"], ["鸟", "bird"], ["兔子", "rabbit"], ["马", "horse"],
-      ["牛", "cow"], ["羊", "sheep"], ["鸭", "duck"], ["母鸡", "hen"], ["老虎", "tiger"],
-      ["狮子", "lion"], ["熊", "bear"], ["猴子", "monkey"], ["大象", "elephant"], ["熊猫", "panda"],
-      ["红色", "red"], ["蓝色", "blue"], ["绿色", "green"], ["黄色", "yellow"], ["黑色", "black"],
-      ["白色", "white"], ["紫色", "purple"], ["粉色", "pink"], ["棕色", "brown"], ["灰色", "gray"],
-      ["太阳", "sun"], ["月亮", "moon"], ["星星", "star"], ["天空", "sky"], ["云", "cloud"],
-      ["妈妈", "mother"], ["爸爸", "father"], ["哥哥", "brother"], ["姐姐", "sister"], ["爷爷", "grandfather"],
-      ["奶奶", "grandmother"], ["朋友", "friend"], ["老师", "teacher"], ["学生", "student"], ["医生", "doctor"],
-      ["头", "head"], ["眼睛", "eye"], ["耳朵", "ear"], ["鼻子", "nose"], ["嘴巴", "mouth"],
-      ["桌子", "table"], ["椅子", "chair"], ["床", "bed"], ["门", "door"], ["窗户", "window"],
-      ["书", "book"], ["钢笔", "pen"], ["铅笔", "pencil"], ["橡皮", "eraser"], ["尺子", "ruler"],
-      ["书包", "schoolbag"], ["电脑", "computer"], ["手机", "phone"], ["手表", "watch"], ["钥匙", "key"],
-      ["跑", "run"], ["走", "walk"], ["跳", "jump"], ["看", "look"], ["听", "listen"],
-      ["说", "speak"], ["读", "read"], ["写", "write"], ["吃", "eat"], ["喝", "drink"],
-      ["大", "big"], ["小", "small"], ["快", "fast"], ["慢", "slow"], ["热", "hot"],
-      ["冷", "cold"], ["今天", "today"], ["明天", "tomorrow"], ["昨天", "yesterday"], ["学校", "school"],
-      ["城市", "city"], ["村庄", "village"], ["国家", "country"], ["地图", "map"], ["道路", "road"],
-      ["桥", "bridge"], ["河流", "river"], ["湖", "lake"], ["海洋", "ocean"], ["山", "mountain"],
-      ["森林", "forest"], ["花", "flower"], ["树", "tree"], ["草", "grass"], ["叶子", "leaf"],
-      ["雨", "rain"], ["雪", "snow"], ["风", "wind"], ["天气", "weather"], ["春天", "spring"],
-      ["夏天", "summer"], ["秋天", "autumn"], ["冬天", "winter"], ["早晨", "morning"], ["夜晚", "night"],
-      ["游泳", "swim"], ["唱歌", "sing"], ["跳舞", "dance"], ["画画", "draw"], ["学习", "study"],
-      ["工作", "work"], ["睡觉", "sleep"], ["醒来", "wake"], ["打开", "open"], ["关闭", "close"],
-      ["开始", "start"], ["结束", "finish"], ["买", "buy"], ["卖", "sell"], ["发送", "send"],
-      ["收到", "receive"], ["帮助", "help"], ["等待", "wait"], ["寻找", "search"], ["找到", "find"],
-      ["洗", "wash"], ["打扫", "clean"], ["烹饪", "cook"], ["练习", "practice"], ["准备", "prepare"],
-      ["高", "tall"], ["矮", "short"], ["年轻", "young"], ["年老", "old"], ["开心", "happy"],
-      ["难过", "sad"], ["容易", "easy"], ["困难", "difficult"], ["干净", "neat"], ["脏", "dirty"],
-      ["安静", "quiet"], ["吵闹", "noisy"], ["明亮", "bright"], ["黑暗", "dark"], ["重要", "important"],
-      ["安全", "safe"], ["危险", "dangerous"], ["正确", "correct"], ["错误", "wrong"], ["特别", "special"],
-      ["便宜", "cheap"], ["昂贵", "expensive"], ["新", "new"], ["旧", "old"], ["简单", "simple"],
-      ["自行车", "bicycle"], ["汽车", "car"], ["公交车", "bus"], ["火车", "train"], ["飞机", "airplane"],
-      ["船", "boat"], ["机场", "airport"], ["车站", "station"], ["票", "ticket"], ["钱包", "wallet"],
-      ["帽子", "hat"], ["鞋", "shoes"], ["袜子", "socks"], ["衬衫", "shirt"], ["裤子", "pants"],
-      ["外套", "coat"], ["裙子", "dress"], ["雨伞", "umbrella"], ["礼物", "gift"], ["照片", "photo"],
-      ["超市", "supermarket"], ["医院", "hospital"], ["公园", "park"], ["图书馆", "library"], ["餐厅", "restaurant"]
-    ];
+    const WORD_BANK = window.WORD_BANK || [];
 
     const TAKE_COUNT = 50;
+    if (!Array.isArray(WORD_BANK) || WORD_BANK.length < TAKE_COUNT) {
+      throw new Error("词库加载失败或数量不足，请检查 word_bank.js");
+    }
     const PAGE_SIZE = 10;
 
     const rowsEl = document.getElementById("wordRows");
