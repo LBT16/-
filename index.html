@@ -49,7 +49,7 @@
     }
 
     .head {
-      padding: 20px 22px 16px;
+      padding: 18px 20px 10px;
       background: linear-gradient(125deg, rgba(255, 255, 255, 0.65), rgba(248, 250, 252, 0.5));
       border-bottom: 1px solid rgba(255, 255, 255, 0.7);
     }
@@ -70,7 +70,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-top: 14px;
+      margin-top: 10px;
     }
 
     .level-select {
@@ -115,7 +115,7 @@
     }
 
     .status {
-      margin-top: 10px;
+      margin-top: 8px;
       font-size: 15px;
       font-weight: 600;
       color: #334155;
@@ -132,8 +132,8 @@
     }
 
     .stats-panel {
-      margin-top: 10px;
-      padding: 10px 12px;
+      margin-top: 8px;
+      padding: 8px 10px;
       border: 1px solid rgba(148, 163, 184, 0.28);
       border-radius: 10px;
       background: rgba(255, 255, 255, 0.5);
@@ -148,13 +148,13 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 10px;
-      margin: 4px 10px 8px;
+      gap: 6px;
+      margin: 2px 8px 4px;
       flex-wrap: wrap;
     }
 
     .pager button {
-      padding: 7px 12px;
+      padding: 6px 10px;
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.58);
       color: #334155;
@@ -168,7 +168,7 @@
     }
 
     .table-wrap {
-      padding: 14px;
+      padding: 4px 10px 8px;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
@@ -255,9 +255,8 @@
 
     @media (max-width: 760px) {
       h1 { font-size: 20px; }
-      .sub { font-size: 13px; }
       .table-wrap {
-        padding: 10px;
+        padding: 2px 8px 8px;
       }
       table {
         min-width: 680px;
@@ -279,7 +278,6 @@
   <main class="wrap">
     <header class="head">
       <h1>记英语单词</h1>
-      <p class="sub">每次随机抽取 50 个中文单词，填写英文后一键批改。</p>
       <div class="toolbar">
         <select class="level-select" id="levelSelect">
           <option value="all">词库：全部（初中+高中+拓展）</option>
