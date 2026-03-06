@@ -148,7 +148,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-top: 10px;
+      margin: 12px 14px 16px;
       flex-wrap: wrap;
     }
 
@@ -294,11 +294,6 @@
       </div>
       <div class="status" id="statusText">点击“随机50词”开始。</div>
       <div class="stats-panel" id="statsPanel">学习统计加载中...</div>
-      <div class="pager">
-        <button id="prevPageBtn">上一批10词</button>
-        <button id="nextPageBtn">下一批10词</button>
-        <span class="page-indicator" id="pageIndicator">第 1 / 5 批</span>
-      </div>
     </header>
 
     <section class="table-wrap" id="tableWrap">
@@ -315,6 +310,11 @@
         <tbody id="wordRows"></tbody>
       </table>
     </section>
+    <div class="pager">
+      <button id="prevPageBtn">上一批10词</button>
+      <button id="nextPageBtn">下一批10词</button>
+      <span class="page-indicator" id="pageIndicator">第 1 / 5 批</span>
+    </div>
   </main>
 
   <script src="word_bank.js"></script>
