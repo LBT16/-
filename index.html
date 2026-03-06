@@ -63,6 +63,15 @@
       margin-top: 14px;
     }
 
+    .level-select {
+      border: 1px solid #dbc9b6;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff8f1;
+      color: #3a3128;
+      font-weight: 600;
+    }
+
     button {
       border: 0;
       border-radius: 10px;
@@ -98,6 +107,17 @@
 
     .wrong-count {
       color: #c0392b;
+    }
+
+    .stats-panel {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid #eddcc9;
+      border-radius: 10px;
+      background: #fffaf4;
+      font-size: 13px;
+      color: #5b4c3f;
+      line-height: 1.55;
     }
 
     .pager {
@@ -233,6 +253,12 @@
       <h1>记英语单词</h1>
       <p class="sub">每次随机抽取 50 个中文单词，填写英文后一键批改。</p>
       <div class="toolbar">
+        <select class="level-select" id="levelSelect">
+          <option value="all">词库：全部（初中+高中+拓展）</option>
+          <option value="junior">词库：初中</option>
+          <option value="high">词库：高中</option>
+          <option value="extra">词库：拓展</option>
+        </select>
         <button class="btn-primary" id="newSetBtn">随机50词</button>
         <button class="btn-light" id="wrongSetBtn">错题本练习</button>
         <button class="btn-light" id="clearWrongBtn">清空错题本</button>
@@ -240,6 +266,7 @@
         <button class="btn-light" id="showBtn" disabled>查看答案</button>
       </div>
       <div class="status" id="statusText">点击“随机50词”开始。</div>
+      <div class="stats-panel" id="statsPanel">学习统计加载中...</div>
       <div class="pager">
         <button id="prevPageBtn">上一批10词</button>
         <button id="nextPageBtn">下一批10词</button>
@@ -266,6 +293,36 @@
   <script src="word_bank.js"></script>
   <script>
     const WORD_BANK = window.WORD_BANK || [];
+    const LEVEL_TEXT = {
+      all: "全部",
+      junior: "初中",
+      high: "高中",
+      extra: "拓展"
+    };
+    const ANSWER_ALIAS = {
+      mom: ["mother", "mum"],
+      mother: ["mom", "mum"],
+      dad: ["father"],
+      father: ["dad"],
+      grandma: ["grandmother"],
+      grandfather: ["grandpa"],
+      grandpa: ["grandfather"],
+      grandparent: ["grandparents"],
+      bike: ["bicycle"],
+      bicycle: ["bike"],
+      movie: ["film"],
+      film: ["movie"],
+      autumn: ["fall"],
+      fall: ["autumn"],
+      shop: ["store"],
+      store: ["shop"],
+      cellphone: ["cell phone", "mobile phone", "phone"],
+      phone: ["telephone", "mobile phone", "cell phone"],
+      sofa: ["couch"],
+      couch: ["sofa"],
+      restroom: ["toilet", "bathroom"],
+      bathroom: ["restroom", "toilet"]
+    };
 
     const TAKE_COUNT = 50;
     if (!Array.isArray(WORD_BANK) || WORD_BANK.length < TAKE_COUNT) {
@@ -275,6 +332,8 @@
 
     const rowsEl = document.getElementById("wordRows");
     const statusEl = document.getElementById("statusText");
+    const statsPanelEl = document.getElementById("statsPanel");
+    const levelSelectEl = document.getElementById("levelSelect");
     const newSetBtn = document.getElementById("newSetBtn");
     const wrongSetBtn = document.getElementById("wrongSetBtn");
     const clearWrongBtn = document.getElementById("clearWrongBtn");
@@ -290,14 +349,23 @@
     let hasChecked = false;
     let touchStartX = 0;
     let currentMode = "random";
+    let currentLevel = localStorage.getItem("word_level_filter") || "all";
     let wrongBook = loadWrongBook();
+    let stats = loadStats();
+    levelSelectEl.value = currentLevel;
 
     function normalize(text) {
       return text.trim().toLowerCase().replace(/\s+/g, " ");
     }
 
+    function getFilteredWordBank() {
+      if (currentLevel === "all") return WORD_BANK;
+      return WORD_BANK.filter((w) => w.level === currentLevel);
+    }
+
     function pickRandomWords() {
-      const copy = [...WORD_BANK];
+      const source = getFilteredWordBank();
+      const copy = [...source];
       for (let i = copy.length - 1; i > 0; i -= 1) {
         const j = Math.floor(Math.random() * (i + 1));
         [copy[i], copy[j]] = [copy[j], copy[i]];
@@ -311,7 +379,14 @@
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) return [];
-        return parsed.filter((x) => Array.isArray(x) && x.length === 2);
+        if (parsed.length === 0) return [];
+        // migrate old data format: [["中文","english"], ...]
+        if (Array.isArray(parsed[0])) {
+          return parsed
+            .filter((x) => Array.isArray(x) && x.length === 2)
+            .map(([cn, en]) => ({ cn, en, level: "all", wrongCount: 1, lastWrongAt: Date.now() }));
+        }
+        return parsed.filter((x) => x && x.cn && x.en);
       } catch (_) {
         return [];
       }
@@ -322,14 +397,99 @@
     }
 
     function addWrongWordsFromCurrent() {
-      const map = new Map(wrongBook.map(([cn, en]) => [`${cn}||${en}`, [cn, en]]));
+      const map = new Map(wrongBook.map((x) => [`${x.cn}||${x.en}`, x]));
+      const now = Date.now();
       currentWords.forEach((item) => {
         if (!item.isCorrect) {
-          map.set(`${item.cn}||${item.en}`, [item.cn, item.en]);
+          const key = `${item.cn}||${item.en}`;
+          const exists = map.get(key);
+          if (exists) {
+            exists.wrongCount = (exists.wrongCount || 0) + 1;
+            exists.lastWrongAt = now;
+            map.set(key, exists);
+          } else {
+            map.set(key, {
+              cn: item.cn,
+              en: item.en,
+              level: item.level || "all",
+              wrongCount: 1,
+              lastWrongAt: now
+            });
+          }
         }
       });
       wrongBook = Array.from(map.values());
       saveWrongBook();
+    }
+
+    function loadStats() {
+      try {
+        const raw = localStorage.getItem("word_study_stats");
+        if (!raw) {
+          return { totalAttempts: 0, totalCorrect: 0, totalWrong: 0, sessions: 0, byDate: {} };
+        }
+        const parsed = JSON.parse(raw);
+        return {
+          totalAttempts: parsed.totalAttempts || 0,
+          totalCorrect: parsed.totalCorrect || 0,
+          totalWrong: parsed.totalWrong || 0,
+          sessions: parsed.sessions || 0,
+          byDate: parsed.byDate || {}
+        };
+      } catch (_) {
+        return { totalAttempts: 0, totalCorrect: 0, totalWrong: 0, sessions: 0, byDate: {} };
+      }
+    }
+
+    function saveStats() {
+      localStorage.setItem("word_study_stats", JSON.stringify(stats));
+    }
+
+    function updateStats(total, correct) {
+      const wrong = total - correct;
+      stats.totalAttempts += total;
+      stats.totalCorrect += correct;
+      stats.totalWrong += wrong;
+      stats.sessions += 1;
+
+      const day = new Date().toISOString().slice(0, 10);
+      if (!stats.byDate[day]) {
+        stats.byDate[day] = { attempts: 0, correct: 0, wrong: 0, sessions: 0 };
+      }
+      stats.byDate[day].attempts += total;
+      stats.byDate[day].correct += correct;
+      stats.byDate[day].wrong += wrong;
+      stats.byDate[day].sessions += 1;
+      saveStats();
+      renderStatsPanel();
+    }
+
+    function renderStatsPanel() {
+      const total = stats.totalAttempts;
+      const correctRate = total ? ((stats.totalCorrect / total) * 100).toFixed(1) : "0.0";
+      const day = new Date().toISOString().slice(0, 10);
+      const today = stats.byDate[day] || { attempts: 0, correct: 0, wrong: 0, sessions: 0 };
+      const topWrong = [...wrongBook]
+        .sort((a, b) => (b.wrongCount || 0) - (a.wrongCount || 0))
+        .slice(0, 3)
+        .map((x) => `${x.cn}(${x.wrongCount})`)
+        .join("、");
+      const filteredCount = getFilteredWordBank().length;
+      statsPanelEl.innerHTML = `词库分级：${LEVEL_TEXT[currentLevel]}（${filteredCount}词） | 累计练习：${stats.sessions}次，正确率：${correctRate}% | 今日：${today.sessions}次 / ${today.correct}/${today.attempts} | 错词TOP：${topWrong || "暂无"}`;
+    }
+
+    function getAnswerVariants(answer) {
+      const base = normalize(answer);
+      const set = new Set([base]);
+      if (ANSWER_ALIAS[base]) {
+        ANSWER_ALIAS[base].forEach((x) => set.add(normalize(x)));
+      }
+      Object.keys(ANSWER_ALIAS).forEach((k) => {
+        if (ANSWER_ALIAS[k].includes(base)) set.add(normalize(k));
+      });
+      if (base.includes("-")) set.add(base.replace(/-/g, " "));
+      if (base.includes(" ")) set.add(base.replace(/\s+/g, ""));
+      return set;
     }
 
     function getTotalPages() {
@@ -360,7 +520,7 @@
         tr.innerHTML = `
           <td class="num">${String(i + 1).padStart(2, "0")}</td>
           <td class="cn">${item.cn}</td>
-          <td><input type="text" data-index="${i}" autocomplete="off" value="${item.user}" /></td>
+          <td><input type="text" data-index="${i}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="latin" value="${item.user}" /></td>
           <td class="result desktop-result"></td>
           <td class="answer desktop-answer"></td>
         `;
@@ -467,9 +627,17 @@
 
     function startNewSet() {
       currentMode = "random";
-      currentWords = pickRandomWords().map(([cn, en]) => ({
-        cn,
-        en,
+      const source = getFilteredWordBank();
+      if (source.length < TAKE_COUNT) {
+        statusEl.classList.remove("score-line");
+        statusEl.textContent = `当前级别“${LEVEL_TEXT[currentLevel]}”词数不足 ${TAKE_COUNT}，请切换词库。`;
+        return;
+      }
+      currentWords = pickRandomWords().map((w) => ({
+        cn: w.cn,
+        en: w.en,
+        level: w.level,
+        accepted: Array.from(getAnswerVariants(w.en)),
         user: "",
         isCorrect: false,
         showAnswer: false
@@ -480,7 +648,7 @@
       showBtn.disabled = true;
       renderRows();
       statusEl.classList.remove("score-line");
-      statusEl.textContent = "已生成新的 50 词（每批10词），请填写后点击“提交批改”。";
+      statusEl.textContent = `已生成新的 50 词（${LEVEL_TEXT[currentLevel]}），请填写后点击“提交批改”。`;
     }
 
     function startWrongSet() {
@@ -490,15 +658,25 @@
       }
 
       currentMode = "wrong";
-      const shuffled = [...wrongBook];
-      for (let i = shuffled.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      const candidates = currentLevel === "all"
+        ? [...wrongBook]
+        : wrongBook.filter((x) => x.level === currentLevel);
+      if (candidates.length === 0) {
+        statusEl.classList.remove("score-line");
+        statusEl.textContent = `错题本中没有“${LEVEL_TEXT[currentLevel]}”词。`;
+        return;
       }
-
-      currentWords = shuffled.map(([cn, en]) => ({
-        cn,
-        en,
+      const sorted = candidates.sort((a, b) => {
+        const wc = (b.wrongCount || 0) - (a.wrongCount || 0);
+        if (wc !== 0) return wc;
+        return (b.lastWrongAt || 0) - (a.lastWrongAt || 0);
+      });
+      const selected = sorted.slice(0, TAKE_COUNT);
+      currentWords = selected.map((w) => ({
+        cn: w.cn,
+        en: w.en,
+        level: w.level || "all",
+        accepted: Array.from(getAnswerVariants(w.en)),
         user: "",
         isCorrect: false,
         showAnswer: false
@@ -509,7 +687,7 @@
       showBtn.disabled = true;
       renderRows();
       statusEl.classList.remove("score-line");
-      statusEl.textContent = `已加载错题本，共 ${currentWords.length} 词，请填写后点击“提交批改”。`;
+      statusEl.textContent = `已加载错题本（${LEVEL_TEXT[currentLevel]}），共 ${currentWords.length} 词，请填写后点击“提交批改”。`;
     }
 
     function clearWrongBook() {
@@ -522,6 +700,7 @@
       }
       statusEl.classList.remove("score-line");
       statusEl.textContent = "错题本已清空。";
+      renderStatsPanel();
     }
 
     function checkAnswers() {
@@ -533,8 +712,8 @@
       let correct = 0;
       currentWords.forEach((item) => {
         const user = normalize(item.user);
-        const answer = normalize(item.en);
-        item.isCorrect = user !== "" && user === answer;
+        const accepts = new Set(item.accepted || [normalize(item.en)]);
+        item.isCorrect = user !== "" && accepts.has(user);
         if (item.isCorrect) correct += 1;
       });
 
@@ -548,6 +727,7 @@
       const wrongCount = total - correct;
       statusEl.classList.add("score-line");
       statusEl.innerHTML = `本次得分：${correct}/${total}（${score}%）  错误单词数：<span class="wrong-count">${wrongCount}</span>  错题本累计：${wrongBook.length}`;
+      updateStats(total, correct);
     }
 
     function revealAnswers() {
@@ -572,6 +752,12 @@
     }
 
     newSetBtn.addEventListener("click", startNewSet);
+    levelSelectEl.addEventListener("change", () => {
+      currentLevel = levelSelectEl.value;
+      localStorage.setItem("word_level_filter", currentLevel);
+      renderStatsPanel();
+      startNewSet();
+    });
     wrongSetBtn.addEventListener("click", startWrongSet);
     clearWrongBtn.addEventListener("click", clearWrongBook);
     checkBtn.addEventListener("click", checkAnswers);
@@ -602,6 +788,7 @@
 
     window.addEventListener("resize", renderRows);
 
+    renderStatsPanel();
     startNewSet();
   </script>
 </body>
