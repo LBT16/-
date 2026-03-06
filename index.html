@@ -186,7 +186,53 @@
     @media (max-width: 760px) {
       h1 { font-size: 20px; }
       .sub { font-size: 13px; }
-      th, td { font-size: 13px; }
+      .table-wrap {
+        overflow-x: visible;
+        padding: 10px;
+      }
+      table, thead, tbody, tr, td {
+        display: block;
+        width: 100%;
+      }
+      thead {
+        display: none;
+      }
+      tr {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fffdf9;
+        margin-bottom: 10px;
+        padding: 4px 0;
+      }
+      td {
+        border-bottom: 1px dashed #eddcc9;
+        font-size: 13px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      td:last-child {
+        border-bottom: 0;
+      }
+      td::before {
+        content: attr(data-label);
+        color: #7a6a5c;
+        font-weight: 700;
+        flex: 0 0 72px;
+      }
+      .num, .cn, .result, .answer {
+        width: auto;
+        min-width: 0;
+      }
+      .answer {
+        text-align: right;
+        word-break: break-word;
+      }
+      input[type="text"] {
+        max-width: 58vw;
+      }
     }
   </style>
 </head>
@@ -358,11 +404,11 @@
         const item = currentWords[i];
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td class="num">${String(i + 1).padStart(2, "0")}</td>
-          <td class="cn">${item.cn}</td>
-          <td><input type="text" data-index="${i}" autocomplete="off" value="${item.user}" /></td>
-          <td class="result"></td>
-          <td class="answer"></td>
+          <td class="num" data-label="序号">${String(i + 1).padStart(2, "0")}</td>
+          <td class="cn" data-label="中文">${item.cn}</td>
+          <td data-label="你的英文"><input type="text" data-index="${i}" autocomplete="off" value="${item.user}" /></td>
+          <td class="result" data-label="结果"></td>
+          <td class="answer" data-label="标准答案"></td>
         `;
 
         const input = tr.querySelector("input");
