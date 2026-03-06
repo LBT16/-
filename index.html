@@ -183,6 +183,28 @@
       min-width: 120px;
     }
 
+    .answer-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .speak-btn {
+      border: 1px solid #d9c8b6;
+      background: #fff8f1;
+      color: #6f5a45;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 12px;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+
+    .speak-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     @media (max-width: 760px) {
       h1 { font-size: 20px; }
       .sub { font-size: 13px; }
@@ -373,7 +395,7 @@
             resultValue.textContent = "错误";
             resultValue.classList.add("bad");
             resultValue.classList.remove("ok");
-            answerValue.textContent = item.showAnswer ? item.en : "";
+            renderAnswerCell(answerValue, item.en, item.showAnswer);
           }
         }
         rowsEl.appendChild(tr);
@@ -387,6 +409,42 @@
       if (!input) return;
       input.focus();
       input.select();
+    }
+
+    function renderAnswerCell(cell, word, visible) {
+      if (!visible) {
+        cell.textContent = "";
+        return;
+      }
+      cell.textContent = "";
+      const wrap = document.createElement("span");
+      wrap.className = "answer-wrap";
+
+      const text = document.createElement("span");
+      text.textContent = word;
+
+      const btn = document.createElement("button");
+      btn.className = "speak-btn";
+      btn.type = "button";
+      btn.dataset.word = word;
+      btn.textContent = "🔊";
+
+      wrap.appendChild(text);
+      wrap.appendChild(btn);
+      cell.appendChild(wrap);
+    }
+
+    function speakWord(word) {
+      if (!("speechSynthesis" in window)) {
+        statusEl.classList.remove("score-line");
+        statusEl.textContent = "当前浏览器不支持语音播放。";
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(word);
+      utterance.lang = "en-US";
+      utterance.rate = 0.95;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
     }
 
     function moveFocusToIndex(targetIndex) {
@@ -518,6 +576,11 @@
     clearWrongBtn.addEventListener("click", clearWrongBook);
     checkBtn.addEventListener("click", checkAnswers);
     showBtn.addEventListener("click", revealAnswers);
+    rowsEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".speak-btn");
+      if (!btn) return;
+      speakWord(btn.dataset.word || "");
+    });
     prevPageBtn.addEventListener("click", () => goToPage(currentPage - 1));
     nextPageBtn.addEventListener("click", () => goToPage(currentPage + 1));
 
